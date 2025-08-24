@@ -1,0 +1,1394 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Diamond Finance - Con Firebase</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Firebase App (el core de Firebase) -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <!-- Firebase Authentication -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+    <!-- Cloud Firestore -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+    <style>
+        :root {
+            --primary-color: #2c3e50;
+            --secondary-color: #34495e;
+            --accent-color: #e74c3c;
+            --income-color: #27ae60;
+            --expense-color: #c0392b;
+            --loan-color: #f39c12;
+            --debt-color: #8e44ad;
+            --background-color: #ecf0f1;
+            --card-bg: #ffffff;
+            --text-color: #2c3e50;
+            --border-radius: 12px;
+            --shadow: 0 8px 25px rgba(0,0,0,0.1);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background: linear-gradient(135deg, var(--background-color) 0%, #bdc3c7 100%);
+            min-height: 100vh;
+            color: var(--text-color);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 1200px;
+            background: white;
+            border-radius: var(--border-radius);
+            box-shadow: var(--shadow);
+            overflow: hidden;
+        }
+
+        .auth-container {
+            padding: 40px;
+            text-align: center;
+            max-width: 500px;
+            margin: 0 auto;
+        }
+
+        .app-container {
+            display: none;
+        }
+
+        .header {
+            background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+            color: white;
+            padding: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .logo-icon {
+            font-size: 2.5rem;
+            color: #ffd700;
+            text-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
+        }
+
+        .logo-text {
+            font-size: 2rem;
+            font-weight: bold;
+            letter-spacing: 1px;
+        }
+
+        .user-menu {
+            position: relative;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+        }
+
+        .user-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: var(--accent-color);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            color: white;
+        }
+
+        .user-dropdown {
+            display: none;
+            position: absolute;
+            top: 50px;
+            right: 0;
+            background: white;
+            border-radius: var(--border-radius);
+            box-shadow: var(--shadow);
+            width: 200px;
+            z-index: 100;
+            overflow: hidden;
+        }
+
+        .user-dropdown.show {
+            display: block;
+        }
+
+        .user-dropdown-item {
+            padding: 12px 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: var(--text-color);
+            text-decoration: none;
+            transition: background 0.2s;
+        }
+
+        .user-dropdown-item:hover {
+            background: #f5f5f5;
+        }
+
+        .main-grid {
+            display: grid;
+            grid-template-columns: 1fr 2fr;
+            gap: 30px;
+            padding: 30px;
+        }
+
+        .sidebar {
+            background: var(--card-bg);
+            padding: 25px;
+            border-radius: var(--border-radius);
+            box-shadow: var(--shadow);
+        }
+
+        .main-content {
+            background: var(--card-bg);
+            padding: 25px;
+            border-radius: var(--border-radius);
+            box-shadow: var(--shadow);
+        }
+
+        .card {
+            background: var(--card-bg);
+            padding: 20px;
+            border-radius: var(--border-radius);
+            margin-bottom: 20px;
+            box-shadow: var(--shadow);
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .stat-card {
+            background: linear-gradient(135deg, var(--secondary-color) 0%, var(--primary-color) 100%);
+            color: white;
+            padding: 20px;
+            border-radius: var(--border-radius);
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 2rem;
+            font-weight: bold;
+            margin: 10px 0;
+        }
+
+        .stat-label {
+            font-size: 0.9rem;
+            opacity: 0.9;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+        }
+
+        input, select, textarea {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 1rem;
+            transition: border-color 0.3s ease;
+        }
+
+        input:focus, select:focus, textarea:focus {
+            outline: none;
+            border-color: var(--primary-color);
+        }
+
+        button {
+            background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 600;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            width: 100%;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+
+        .btn-income {
+            background: linear-gradient(135deg, var(--income-color) 0%, #2ecc71 100%);
+        }
+
+        .btn-expense {
+            background: linear-gradient(135deg, var(--expense-color) 0%, #e74c3c 100%);
+        }
+
+        .btn-loan {
+            background: linear-gradient(135deg, var(--loan-color) 0%, #f1c40f 100%);
+        }
+
+        .btn-debt {
+            background: linear-gradient(135deg, var(--debt-color) 0%, #9b59b6 100%);
+        }
+
+        .btn-auth {
+            background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+            margin-top: 20px;
+        }
+
+        .auth-toggle {
+            margin-top: 20px;
+            text-align: center;
+            color: var(--primary-color);
+            cursor: pointer;
+        }
+
+        .transaction-list {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .transaction-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px;
+            border-bottom: 1px solid #eee;
+            transition: background-color 0.2s ease;
+        }
+
+        .transaction-item:hover {
+            background-color: #f8f9fa;
+        }
+
+        .transaction-amount.income {
+            color: var(--income-color);
+            font-weight: bold;
+        }
+
+        .transaction-amount.expense {
+            color: var(--expense-color);
+            font-weight: bold;
+        }
+
+        .chart-container {
+            height: 300px;
+            margin-top: 20px;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .tab {
+            padding: 10px 20px;
+            background: #eee;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        .tab.active {
+            background: var(--primary-color);
+            color: white;
+        }
+
+        .category-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            margin-right: 8px;
+        }
+
+        .filter-bar {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .filter-item {
+            flex: 1;
+            min-width: 200px;
+        }
+
+        .sync-status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.9rem;
+            color: #666;
+            margin-top: 10px;
+        }
+
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255,255,255,.3);
+            border-radius: 50%;
+            border-top-color: #fff;
+            animation: spin 1s ease-in-out infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        @media (max-width: 768px) {
+            .main-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .filter-bar {
+                flex-direction: column;
+            }
+            
+            .filter-item {
+                min-width: 100%;
+            }
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 30px;
+            border-radius: var(--border-radius);
+            max-width: 500px;
+            width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .close-modal {
+            float: right;
+            font-size: 1.5rem;
+            cursor: pointer;
+        }
+
+        .export-options {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 15px 25px;
+            background: var(--income-color);
+            color: white;
+            border-radius: 8px;
+            box-shadow: var(--shadow);
+            transform: translateX(100%);
+            transition: transform 0.3s ease;
+            z-index: 1001;
+        }
+
+        .notification.show {
+            transform: translateX(0);
+        }
+
+        .setup-container {
+            padding: 30px;
+            text-align: center;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        .code-block {
+            background: #2c3e50;
+            color: white;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: left;
+            margin: 20px 0;
+            font-family: monospace;
+            overflow-x: auto;
+        }
+        
+        .firebase-config {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Configuración de Firebase (oculta) -->
+        <div class="firebase-config">
+            <!-- Esta es tu configuración de Firebase integrada directamente -->
+            <script>
+                // Tu configuración de Firebase
+                const firebaseConfig = {
+                    apiKey: "AIzaSyDBrbUIuPaQWophJGirz-9Svw3uuPaME-o",
+                    authDomain: "diamond-finance-d06c0.firebaseapp.com",
+                    projectId: "diamond-finance-d06c0",
+                    storageBucket: "diamond-finance-d06c0.firebasestorage.app",
+                    messagingSenderId: "207422088254",
+                    appId: "1:207422088254:web:3a0d6dcb6555881472dd6f",
+                    measurementId: "G-MBWH1E2NMV"
+                };
+                
+                // Inicializar Firebase
+                firebase.initializeApp(firebaseConfig);
+            </script>
+        </div>
+
+        <!-- Pantalla de Autenticación -->
+        <div id="auth-container" class="auth-container">
+            <div class="logo" style="justify-content: center; margin-bottom: 30px;">
+                <div class="logo-icon">
+                    <i class="fas fa-gem"></i>
+                </div>
+                <h1 class="logo-text">Diamond Finance</h1>
+            </div>
+            
+            <div id="login-form">
+                <h2>Iniciar Sesión</h2>
+                <div class="form-group">
+                    <label for="login-email">Correo electrónico</label>
+                    <input type="email" id="login-email" placeholder="tu@email.com">
+                </div>
+                <div class="form-group">
+                    <label for="login-password">Contraseña</label>
+                    <input type="password" id="login-password" placeholder="Tu contraseña">
+                </div>
+                <button onclick="login()" class="btn-auth">Iniciar Sesión</button>
+                <div class="auth-toggle" onclick="showRegisterForm()">¿No tienes cuenta? Regístrate aquí</div>
+            </div>
+            
+            <div id="register-form" style="display: none;">
+                <h2>Crear Cuenta</h2>
+                <div class="form-group">
+                    <label for="register-name">Nombre completo</label>
+                    <input type="text" id="register-name" placeholder="Tu nombre">
+                </div>
+                <div class="form-group">
+                    <label for="register-email">Correo electrónico</label>
+                    <input type="email" id="register-email" placeholder="tu@email.com">
+                </div>
+                <div class="form-group">
+                    <label for="register-password">Contraseña</label>
+                    <input type="password" id="register-password" placeholder="Crea una contraseña segura">
+                </div>
+                <button onclick="register()" class="btn-auth">Crear Cuenta</button>
+                <div class="auth-toggle" onclick="showLoginForm()">¿Ya tienes cuenta? Inicia sesión aquí</div>
+            </div>
+        </div>
+
+        <!-- Aplicación Principal -->
+        <div id="app-container" class="app-container">
+            <header class="header">
+                <div class="logo">
+                    <div class="logo-icon">
+                        <i class="fas fa-gem"></i>
+                    </div>
+                    <h1 class="logo-text">Diamond Finance</h1>
+                </div>
+                <div class="user-menu" onclick="toggleUserDropdown()">
+                    <div class="user-avatar" id="user-avatar">U</div>
+                    <span id="user-name">Usuario</span>
+                    <i class="fas fa-chevron-down"></i>
+                    <div class="user-dropdown" id="user-dropdown">
+                        <div class="user-dropdown-item" onclick="syncData()">
+                            <i class="fas fa-sync"></i> Sincronizar ahora
+                        </div>
+                        <div class="user-dropdown-item" onclick="showExportModal()">
+                            <i class="fas fa-download"></i> Exportar datos
+                        </div>
+                        <div class="user-dropdown-item" onclick="logout()">
+                            <i class="fas fa-sign-out-alt"></i> Cerrar sesión
+                        </div>
+                    </div>
+                </div>
+            </header>
+
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-label">Balance Total</div>
+                    <div class="stat-value" id="total-balance">€0.00</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Ingresos Totales</div>
+                    <div class="stat-value" id="total-income">€0.00</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Gastos Totales</div>
+                    <div class="stat-value" id="total-expenses">€0.00</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Préstamos Activos</div>
+                    <div class="stat-value" id="total-loans">€0.00</div>
+                </div>
+            </div>
+
+            <div class="main-grid">
+                <div class="sidebar">
+                    <h2>Nueva Transacción</h2>
+                    <div class="form-group">
+                        <label for="transaction-type">Tipo</label>
+                        <select id="transaction-type">
+                            <option value="income">Ingreso</option>
+                            <option value="expense">Gasto</option>
+                            <option value="loan">Préstamo (Dar)</option>
+                            <option value="debt">Deuda (Recibir)</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="transaction-amount">Cantidad (€)</label>
+                        <input type="number" id="transaction-amount" step="0.01" placeholder="0.00">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="transaction-category">Categoría</label>
+                        <select id="transaction-category">
+                            <option value="salario">Salario</option>
+                            <option value="freelance">Freelance</option>
+                            <option value="inversion">Inversión</option>
+                            <option value="comida">Comida</option>
+                            <option value="transporte">Transporte</option>
+                            <option value="ocio">Ocio</option>
+                            <option value="casa">Casa</option>
+                            <option value="salud">Salud</option>
+                            <option value="educacion">Educación</option>
+                            <option value="otros">Otros</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="transaction-description">Descripción</label>
+                        <input type="text" id="transaction-description" placeholder="Descripción de la transacción">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="transaction-date">Fecha</label>
+                        <input type="datetime-local" id="transaction-date">
+                    </div>
+
+                    <div id="loan-debt-fields" style="display: none;">
+                        <div class="form-group">
+                            <label for="loan-person">Persona</label>
+                            <input type="text" id="loan-person" placeholder="Nombre de la persona">
+                        </div>
+                        <div class="form-group">
+                            <label for="loan-due-date">Fecha de vencimiento</label>
+                            <input type="date" id="loan-due-date">
+                        </div>
+                    </div>
+
+                    <button onclick="addTransaction()" class="btn-income">
+                        <i class="fas fa-plus"></i> Agregar Transacción
+                    </button>
+
+                    <div class="sync-status">
+                        <i class="fas fa-cloud"></i>
+                        <span id="sync-status">Sincronizado</span>
+                    </div>
+                </div>
+
+                <div class="main-content">
+                    <div class="tabs">
+                        <div class="tab active" onclick="showTab('transactions')">Transacciones</div>
+                        <div class="tab" onclick="showTab('charts')">Gráficos</div>
+                        <div class="tab" onclick="showTab('loans')">Préstamos & Deudas</div>
+                    </div>
+
+                    <div class="filter-bar">
+                        <div class="filter-item">
+                            <label for="filter-date-from">Desde</label>
+                            <input type="date" id="filter-date-from">
+                        </div>
+                        <div class="filter-item">
+                            <label for="filter-date-to">Hasta</label>
+                            <input type="date" id="filter-date-to">
+                        </div>
+                        <div class="filter-item">
+                            <label for="filter-category">Categoría</label>
+                            <select id="filter-category">
+                                <option value="all">Todas</option>
+                                <option value="salario">Salario</option>
+                                <option value="freelance">Freelance</option>
+                                <option value="inversion">Inversión</option>
+                                <option value="comida">Comida</option>
+                                <option value="transporte">Transporte</option>
+                                <option value="ocio">Ocio</option>
+                                <option value="casa">Casa</option>
+                                <option value="salud">Salud</option>
+                                <option value="educacion">Educación</option>
+                                <option value="otros">Otros</option>
+                            </select>
+                        </div>
+                        <div class="filter-item">
+                            <label style="visibility: hidden;">Filtrar</label>
+                            <button onclick="applyFilters()">Aplicar Filtros</button>
+                        </div>
+                    </div>
+
+                    <div id="transactions-tab" class="tab-content">
+                        <h3>Historial de Transacciones</h3>
+                        <div class="transaction-list" id="transaction-list">
+                            <!-- Las transacciones se cargarán aquí -->
+                        </div>
+                    </div>
+
+                    <div id="charts-tab" class="tab-content" style="display: none;">
+                        <h3>Análisis de Gastos</h3>
+                        <div class="chart-container">
+                            <canvas id="expenses-chart"></canvas>
+                        </div>
+                        <h3>Evolución Mensual</h3>
+                        <div class="chart-container">
+                            <canvas id="monthly-chart"></canvas>
+                        </div>
+                    </div>
+
+                    <div id="loans-tab" class="tab-content" style="display: none;">
+                        <h3>Préstamos y Deudas</h3>
+                        <div id="loans-list">
+                            <!-- Los préstamos y deudas se cargarán aquí -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Exportación -->
+    <div id="export-modal" class="modal">
+        <div class="modal-content">
+            <span class="close-modal" onclick="closeModal('export-modal')">&times;</span>
+            <h2>Exportar Datos</h2>
+            <p>Selecciona el formato y período para exportar tus datos financieros:</p>
+            
+            <div class="form-group">
+                <label for="export-format">Formato</label>
+                <select id="export-format">
+                    <option value="csv">CSV (Excel)</option>
+                    <option value="json">JSON</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="export-date-from">Desde</label>
+                <input type="date" id="export-date-from">
+            </div>
+
+            <div class="form-group">
+                <label for="export-date-to">Hasta</label>
+                <input type="date" id="export-date-to">
+            </div>
+
+            <div class="export-options">
+                <button onclick="exportData('all')">Exportar Todo</button>
+                <button onclick="exportData('filtered')">Exportar Filtrado</button>
+                <button onclick="exportData('current')">Mes Actual</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notificación -->
+    <div id="notification" class="notification"></div>
+
+    <script>
+        // Variables globales
+        let currentUser = null;
+        let transactions = [];
+        let currentFilters = {
+            dateFrom: null,
+            dateTo: null,
+            category: 'all'
+        };
+        let expensesChart = null;
+        let monthlyChart = null;
+        let unsubscribeTransactions = null;
+
+        // Inicialización
+        document.addEventListener('DOMContentLoaded', function() {
+            // Verificar si hay una sesión activa
+            firebase.auth().onAuthStateChanged((user) => {
+                if (user) {
+                    currentUser = user;
+                    loadUserData();
+                    showApp();
+                } else {
+                    showAuth();
+                }
+            });
+            
+            // Configurar fecha actual por defecto
+            const now = new Date();
+            document.getElementById('transaction-date').value = now.toISOString().slice(0, 16);
+            
+            // Configurar filtros de fecha por defecto (mes actual)
+            const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
+            const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+            
+            document.getElementById('filter-date-from').value = firstDay.toISOString().slice(0, 10);
+            document.getElementById('filter-date-to').value = lastDay.toISOString().slice(0, 10);
+            
+            document.getElementById('export-date-from').value = firstDay.toISOString().slice(0, 10);
+            document.getElementById('export-date-to').value = lastDay.toISOString().slice(0, 10);
+            
+            // Event listeners
+            document.getElementById('transaction-type').addEventListener('change', function() {
+                const loanDebtFields = document.getElementById('loan-debt-fields');
+                loanDebtFields.style.display = (this.value === 'loan' || this.value === 'debt') ? 'block' : 'none';
+                
+                // Cambiar color del botón según el tipo
+                const button = document.querySelector('.sidebar button');
+                button.className = '';
+                if (this.value === 'income') button.classList.add('btn-income');
+                else if (this.value === 'expense') button.classList.add('btn-expense');
+                else if (this.value === 'loan') button.classList.add('btn-loan');
+                else if (this.value === 'debt') button.classList.add('btn-debt');
+            });
+        });
+
+        // Funciones de autenticación
+        function showAuth() {
+            document.getElementById('auth-container').style.display = 'block';
+            document.getElementById('app-container').style.display = 'none';
+        }
+
+        function showApp() {
+            document.getElementById('auth-container').style.display = 'none';
+            document.getElementById('app-container').style.display = 'block';
+            document.getElementById('user-name').textContent = currentUser.displayName || currentUser.email;
+            document.getElementById('user-avatar').textContent = (currentUser.displayName || currentUser.email).charAt(0).toUpperCase();
+        }
+
+        function showLoginForm() {
+            document.getElementById('login-form').style.display = 'block';
+            document.getElementById('register-form').style.display = 'none';
+        }
+
+        function showRegisterForm() {
+            document.getElementById('login-form').style.display = 'none';
+            document.getElementById('register-form').style.display = 'block';
+        }
+
+        function login() {
+            const email = document.getElementById('login-email').value;
+            const password = document.getElementById('login-password').value;
+            
+            if (!email || !password) {
+                showNotification('Por favor, completa todos los campos', 'error');
+                return;
+            }
+            
+            document.getElementById('sync-status').innerHTML = '<div class="loading"></div> Conectando...';
+            
+            firebase.auth().signInWithEmailAndPassword(email, password)
+                .then((userCredential) => {
+                    currentUser = userCredential.user;
+                    showNotification('¡Bienvenido de nuevo!', 'success');
+                    document.getElementById('sync-status').textContent = 'Sincronizado';
+                })
+                .catch((error) => {
+                    showNotification('Error al iniciar sesión: ' + error.message, 'error');
+                    document.getElementById('sync-status').textContent = 'Error de conexión';
+                });
+        }
+
+        function register() {
+            const name = document.getElementById('register-name').value;
+            const email = document.getElementById('register-email').value;
+            const password = document.getElementById('register-password').value;
+            
+            if (!name || !email || !password) {
+                showNotification('Por favor, completa todos los campos', 'error');
+                return;
+            }
+            
+            document.getElementById('sync-status').innerHTML = '<div class="loading"></div> Creando cuenta...';
+            
+            firebase.auth().createUserWithEmailAndPassword(email, password)
+                .then((userCredential) => {
+                    // Actualizar el perfil del usuario con su nombre
+                    return userCredential.user.updateProfile({
+                        displayName: name
+                    }).then(() => {
+                        currentUser = userCredential.user;
+                        showNotification('¡Cuenta creada con éxito!', 'success');
+                        document.getElementById('sync-status').textContent = 'Sincronizado';
+                    });
+                })
+                .catch((error) => {
+                    showNotification('Error al crear cuenta: ' + error.message, 'error');
+                    document.getElementById('sync-status').textContent = 'Error de conexión';
+                });
+        }
+
+        function logout() {
+            if (unsubscribeTransactions) unsubscribeTransactions();
+            firebase.auth().signOut().then(() => {
+                currentUser = null;
+                transactions = [];
+                showAuth();
+                showNotification('Sesión cerrada', 'info');
+            });
+        }
+
+        function toggleUserDropdown() {
+            document.getElementById('user-dropdown').classList.toggle('show');
+        }
+
+        // Funciones de datos de usuario
+        function loadUserData() {
+            if (!currentUser) return;
+            
+            document.getElementById('sync-status').innerHTML = '<div class="loading"></div> Sincronizando...';
+            
+            // Suscribirse a cambios en tiempo real en las transacciones
+            const db = firebase.firestore();
+            unsubscribeTransactions = db.collection('transactions')
+                .where('userId', '==', currentUser.uid)
+                .orderBy('date', 'desc')
+                .onSnapshot((snapshot) => {
+                    transactions = [];
+                    snapshot.forEach((doc) => {
+                        transactions.push({ id: doc.id, ...doc.data() });
+                    });
+                    
+                    updateStats();
+                    renderTransactions();
+                    setupCharts();
+                    document.getElementById('sync-status').textContent = 'Sincronizado';
+                }, (error) => {
+                    showNotification('Error sincronizando datos: ' + error.message, 'error');
+                    document.getElementById('sync-status').textContent = 'Error de sincronización';
+                });
+        }
+
+        function syncData() {
+            document.getElementById('sync-status').innerHTML = '<div class="loading"></div> Sincronizando...';
+            // Forzar recarga de datos
+            if (unsubscribeTransactions) unsubscribeTransactions();
+            loadUserData();
+        }
+
+        function addTransaction() {
+            if (!currentUser) {
+                showNotification('Debes iniciar sesión para agregar transacciones', 'error');
+                return;
+            }
+            
+            const type = document.getElementById('transaction-type').value;
+            const amount = parseFloat(document.getElementById('transaction-amount').value);
+            const category = document.getElementById('transaction-category').value;
+            const description = document.getElementById('transaction-description').value;
+            const date = document.getElementById('transaction-date').value || new Date().toISOString();
+
+            if (!amount || amount <= 0 || isNaN(amount)) {
+                showNotification('Por favor, ingresa una cantidad válida', 'error');
+                return;
+            }
+
+            if (!description.trim()) {
+                showNotification('Por favor, ingresa una descripción', 'error');
+                return;
+            }
+
+            const transaction = {
+                type: type,
+                amount: amount,
+                category: category,
+                description: description,
+                date: date,
+                createdAt: new Date().toISOString(),
+                userId: currentUser.uid
+            };
+
+            if (type === 'loan' || type === 'debt') {
+                const person = document.getElementById('loan-person').value;
+                const dueDate = document.getElementById('loan-due-date').value;
+                
+                if (!person.trim()) {
+                    showNotification('Por favor, ingresa el nombre de la persona', 'error');
+                    return;
+                }
+
+                transaction.person = person;
+                transaction.dueDate = dueDate;
+                transaction.status = 'pending';
+            }
+
+            document.getElementById('sync-status').innerHTML = '<div class="loading"></div> Guardando...';
+            
+            // Guardar en Firebase
+            const db = firebase.firestore();
+            db.collection('transactions').add(transaction)
+                .then(() => {
+                    showNotification('Transacción agregada correctamente', 'success');
+                    
+                    // Limpiar formulario
+                    document.getElementById('transaction-amount').value = '';
+                    document.getElementById('transaction-description').value = '';
+                    document.getElementById('loan-person').value = '';
+                    document.getElementById('loan-due-date').value = '';
+                })
+                .catch((error) => {
+                    showNotification('Error guardando transacción: ' + error.message, 'error');
+                    document.getElementById('sync-status').textContent = 'Error de guardado';
+                });
+        }
+
+        function showTab(tabName) {
+            // Ocultar todos los tabs
+            document.querySelectorAll('.tab-content').forEach(tab => {
+                tab.style.display = 'none';
+            });
+            
+            // Mostrar el tab seleccionado
+            document.getElementById(tabName + '-tab').style.display = 'block';
+            
+            // Actualizar tabs activos
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            event.target.classList.add('active');
+            
+            // Si es el tab de gráficos, actualizarlos
+            if (tabName === 'charts') {
+                updateCharts();
+            } else if (tabName === 'loans') {
+                renderLoans();
+            }
+        }
+
+        function applyFilters() {
+            const dateFrom = document.getElementById('filter-date-from').value;
+            const dateTo = document.getElementById('filter-date-to').value;
+            const category = document.getElementById('filter-category').value;
+
+            currentFilters = {
+                dateFrom: dateFrom,
+                dateTo: dateTo,
+                category: category
+            };
+
+            renderTransactions();
+            updateStats();
+        }
+
+        function getFilteredTransactions() {
+            return transactions.filter(transaction => {
+                // Filtrar por fecha
+                const transactionDate = new Date(transaction.date);
+                if (currentFilters.dateFrom) {
+                    const filterDateFrom = new Date(currentFilters.dateFrom);
+                    if (transactionDate < filterDateFrom) return false;
+                }
+                if (currentFilters.dateTo) {
+                    const filterDateTo = new Date(currentFilters.dateTo);
+                    filterDateTo.setHours(23, 59, 59);
+                    if (transactionDate > filterDateTo) return false;
+                }
+                
+                // Filtrar por categoría
+                if (currentFilters.category !== 'all' && transaction.category !== currentFilters.category) {
+                    return false;
+                }
+                
+                return true;
+            });
+        }
+
+        function renderTransactions() {
+            const filteredTransactions = getFilteredTransactions();
+            const transactionList = document.getElementById('transaction-list');
+            
+            if (filteredTransactions.length === 0) {
+                transactionList.innerHTML = '<p>No hay transacciones que coincidan con los filtros.</p>';
+                return;
+            }
+
+            transactionList.innerHTML = filteredTransactions.map(transaction => `
+                <div class="transaction-item">
+                    <div>
+                        <div style="font-weight: bold;">${transaction.description}</div>
+                        <div style="font-size: 0.9rem; color: #666;">
+                            ${formatDate(transaction.date)} • 
+                            <span class="category-badge" style="background: ${getCategoryColor(transaction.category)}; color: white;">
+                                ${getCategoryName(transaction.category)}
+                            </span>
+                            ${transaction.person ? `• ${transaction.person}` : ''}
+                        </div>
+                    </div>
+                    <div class="transaction-amount ${transaction.type}">
+                        ${transaction.type === 'income' || transaction.type === 'debt' ? '+' : '-'}€${transaction.amount.toFixed(2)}
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function renderLoans() {
+            const loans = transactions.filter(t => t.type === 'loan' || t.type === 'debt');
+            const loansList = document.getElementById('loans-list');
+            
+            if (loans.length === 0) {
+                loansList.innerHTML = '<p>No hay préstamos o deudas registrados.</p>';
+                return;
+            }
+
+            loansList.innerHTML = loans.map(loan => `
+                <div class="card">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                        <h4>${loan.description}</h4>
+                        <span class="transaction-amount ${loan.type}">
+                            €${loan.amount.toFixed(2)}
+                        </span>
+                    </div>
+                    <div style="color: #666; margin-bottom: 10px;">
+                        <div><strong>Persona:</strong> ${loan.person}</div>
+                        <div><strong>Fecha:</strong> ${formatDate(loan.date)}</div>
+                        ${loan.dueDate ? `<div><strong>Vence:</strong> ${formatDate(loan.dueDate)}</div>` : ''}
+                        <div><strong>Estado:</strong> ${loan.status === 'paid' ? 'Pagado' : 'Pendiente'}</div>
+                    </div>
+                    ${loan.status !== 'paid' ? `
+                        <button onclick="markAsPaid('${loan.id}')" class="btn-income">
+                            <i class="fas fa-check"></i> Marcar como Pagado
+                        </button>
+                    ` : ''}
+                </div>
+            `).join('');
+        }
+
+        function markAsPaid(id) {
+            const db = firebase.firestore();
+            db.collection('transactions').doc(id).update({
+                status: 'paid'
+            })
+            .then(() => {
+                showNotification('Préstamo/deuda marcado como pagado', 'success');
+            })
+            .catch((error) => {
+                showNotification('Error actualizando: ' + error.message, 'error');
+            });
+        }
+
+        function updateStats() {
+            const filteredTransactions = getFilteredTransactions();
+            
+            const totalIncome = filteredTransactions
+                .filter(t => t.type === 'income')
+                .reduce((sum, t) => sum + t.amount, 0);
+                
+            const totalExpenses = filteredTransactions
+                .filter(t => t.type === 'expense')
+                .reduce((sum, t) => sum + t.amount, 0);
+                
+            const totalLoans = filteredTransactions
+                .filter(t => t.type === 'loan' && t.status !== 'paid')
+                .reduce((sum, t) => sum + t.amount, 0);
+                
+            const totalDebts = filteredTransactions
+                .filter(t => t.type === 'debt' && t.status !== 'paid')
+                .reduce((sum, t) => sum + t.amount, 0);
+                
+            const totalBalance = totalIncome + totalDebts - totalExpenses - totalLoans;
+
+            document.getElementById('total-balance').textContent = `€${totalBalance.toFixed(2)}`;
+            document.getElementById('total-income').textContent = `€${totalIncome.toFixed(2)}`;
+            document.getElementById('total-expenses').textContent = `€${totalExpenses.toFixed(2)}`;
+            document.getElementById('total-loans').textContent = `€${(totalLoans + totalDebts).toFixed(2)}`;
+        }
+
+        function setupCharts() {
+            const expensesCtx = document.getElementById('expenses-chart').getContext('2d');
+            const monthlyCtx = document.getElementById('monthly-chart').getContext('2d');
+            
+            expensesChart = new Chart(expensesCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        data: [],
+                        backgroundColor: []
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'right'
+                        }
+                    }
+                }
+            });
+            
+            monthlyChart = new Chart(monthlyCtx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [
+                        {
+                            label: 'Ingresos',
+                            data: [],
+                            borderColor: '#27ae60',
+                            backgroundColor: 'rgba(39, 174, 96, 0.1)',
+                            fill: true,
+                            tension: 0.4
+                        },
+                        {
+                            label: 'Gastos',
+                            data: [],
+                            borderColor: '#c0392b',
+                            backgroundColor: 'rgba(192, 57, 43, 0.1)',
+                            fill: true,
+                            tension: 0.4
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+            
+            updateCharts();
+        }
+
+        function updateCharts() {
+            // Actualizar gráfico de gastos por categoría
+            const expensesByCategory = {};
+            transactions
+                .filter(t => t.type === 'expense')
+                .forEach(t => {
+                    expensesByCategory[t.category] = (expensesByCategory[t.category] || 0) + t.amount;
+                });
+            
+            const categories = Object.keys(expensesByCategory);
+            const amounts = Object.values(expensesByCategory);
+            const colors = categories.map(getCategoryColor);
+            
+            expensesChart.data.labels = categories.map(getCategoryName);
+            expensesChart.data.datasets[0].data = amounts;
+            expensesChart.data.datasets[0].backgroundColor = colors;
+            expensesChart.update();
+            
+            // Actualizar gráfico mensual
+            const monthlyData = {};
+            const now = new Date();
+            const months = [];
+            
+            // Generar últimos 6 meses
+            for (let i = 5; i >= 0; i--) {
+                const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
+                const monthKey = date.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' });
+                months.push(monthKey);
+                monthlyData[monthKey] = { income: 0, expenses: 0 };
+            }
+            
+            // Calcular datos mensuales
+            transactions.forEach(t => {
+                const date = new Date(t.date);
+                const monthKey = date.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' });
+                
+                if (monthlyData[monthKey]) {
+                    if (t.type === 'income') {
+                        monthlyData[monthKey].income += t.amount;
+                    } else if (t.type === 'expense') {
+                        monthlyData[monthKey].expenses += t.amount;
+                    }
+                }
+            });
+            
+            monthlyChart.data.labels = months;
+            monthlyChart.data.datasets[0].data = months.map(month => monthlyData[month]?.income || 0);
+            monthlyChart.data.datasets[1].data = months.map(month => monthlyData[month]?.expenses || 0);
+            monthlyChart.update();
+        }
+
+        function showExportModal() {
+            document.getElementById('export-modal').style.display = 'flex';
+        }
+
+        function closeModal(modalId) {
+            document.getElementById(modalId).style.display = 'none';
+        }
+
+        function exportData(type) {
+            let dataToExport = transactions;
+            let fileName = 'diamond_finance_export';
+            
+            if (type === 'filtered') {
+                dataToExport = getFilteredTransactions();
+                fileName += '_filtrado';
+            } else if (type === 'current') {
+                const now = new Date();
+                const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
+                const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+                
+                dataToExport = transactions.filter(t => {
+                    const date = new Date(t.date);
+                    return date >= firstDay && date <= lastDay;
+                });
+                fileName += '_mes_actual';
+            }
+            
+            const format = document.getElementById('export-format').value;
+            const dateFrom = document.getElementById('export-date-from').value;
+            const dateTo = document.getElementById('export-date-to').value;
+            
+            if (dateFrom && dateTo) {
+                dataToExport = dataToExport.filter(t => {
+                    const date = new Date(t.date);
+                    return date >= new Date(dateFrom) && date <= new Date(dateTo);
+                });
+                fileName += `_${dateFrom}_a_${dateTo}`;
+            }
+            
+            if (format === 'csv') {
+                exportToCSV(dataToExport, fileName);
+            } else {
+                exportToJSON(dataToExport, fileName);
+            }
+            
+            closeModal('export-modal');
+            showNotification('Datos exportados correctamente', 'success');
+        }
+
+        function exportToCSV(data, fileName) {
+            const headers = ['Fecha', 'Tipo', 'Categoría', 'Descripción', 'Cantidad', 'Persona', 'Fecha Vencimiento', 'Estado'];
+            const csvData = data.map(t => [
+                formatDate(t.date),
+                t.type === 'income' ? 'Ingreso' : t.type === 'expense' ? 'Gasto' : t.type === 'loan' ? 'Préstamo' : 'Deuda',
+                getCategoryName(t.category),
+                t.description,
+                t.amount,
+                t.person || '',
+                t.dueDate ? formatDate(t.dueDate) : '',
+                t.status === 'paid' ? 'Pagado' : 'Pendiente'
+            ]);
+            
+            const csvContent = [headers, ...csvData].map(row => row.join(',')).join('\n');
+            downloadFile(csvContent, fileName + '.csv', 'text/csv');
+        }
+
+        function exportToJSON(data, fileName) {
+            const jsonContent = JSON.stringify(data, null, 2);
+            downloadFile(jsonContent, fileName + '.json', 'application/json');
+        }
+
+        function downloadFile(content, fileName, contentType) {
+            const blob = new Blob([content], { type: contentType });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = fileName;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        function showNotification(message, type) {
+            const notification = document.getElementById('notification');
+            notification.textContent = message;
+            notification.style.background = type === 'success' ? '#27ae60' : type === 'error' ? '#e74c3c' : '#3498db';
+            notification.classList.add('show');
+            
+            setTimeout(() => {
+                notification.classList.remove('show');
+            }, 3000);
+        }
+
+        // Funciones de utilidad
+        function formatDate(dateString) {
+            const date = new Date(dateString);
+            return date.toLocaleDateString('es-ES', {
+                year: 'numeric',
+                month: 'short',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+        }
+
+        function getCategoryName(category) {
+            const categories = {
+                'salario': 'Salario',
+                'freelance': 'Freelance',
+                'inversion': 'Inversión',
+                'comida': 'Comida',
+                'transporte': 'Transporte',
+                'ocio': 'Ocio',
+                'casa': 'Casa',
+                'salud': 'Salud',
+                'educacion': 'Educación',
+                'otros': 'Otros'
+            };
+            return categories[category] || category;
+        }
+
+        function getCategoryColor(category) {
+            const colors = {
+                'salario': '#27ae60',
+                'freelance': '#2ecc71',
+                'inversion': '#3498db',
+                'comida': '#e74c3c',
+                'transporte': '#f39c12',
+                'ocio': '#9b59b6',
+                'casa': '#34495e',
+                'salud': '#e67e22',
+                'educacion': '#16a085',
+                'otros': '#7f8c8d'
+            };
+            return colors[category] || '#95a5a6';
+        }
+    </script>
+</body>
+</html>
