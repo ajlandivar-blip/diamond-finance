@@ -364,6 +364,24 @@
             to { transform: rotate(360deg); }
         }
 
+        .transaction-actions {
+            display: flex;
+            gap: 8px;
+            margin-top: 8px;
+        }
+
+        .btn-edit {
+            background: #3498db;
+            padding: 6px 12px;
+            font-size: 0.8rem;
+        }
+
+        .btn-delete {
+            background: #e74c3c;
+            padding: 6px 12px;
+            font-size: 0.8rem;
+        }
+
         @media (max-width: 768px) {
             .main-grid {
                 grid-template-columns: 1fr;
@@ -599,6 +617,7 @@
                             <option value="casa">Casa</option>
                             <option value="salud">Salud</option>
                             <option value="educacion">Educación</option>
+                            <option value="prestamos">Préstamos</option>
                             <option value="otros">Otros</option>
                         </select>
                     </div>
@@ -624,7 +643,7 @@
                         </div>
                     </div>
 
-                    <button onclick="addTransaction()" class="btn-income">
+                    <button onclick="addTransaction()" class="btn-income" id="transaction-submit">
                         <i class="fas fa-plus"></i> Agregar Transacción
                     </button>
 
@@ -663,6 +682,7 @@
                                 <option value="casa">Casa</option>
                                 <option value="salud">Salud</option>
                                 <option value="educacion">Educación</option>
+                                <option value="prestamos">Préstamos</option>
                                 <option value="otros">Otros</option>
                             </select>
                         </div>
@@ -749,6 +769,7 @@
         let expensesChart = null;
         let monthlyChart = null;
         let unsubscribeTransactions = null;
+        let currentEditingId = null;
 
         // Inicialización
         document.addEventListener('DOMContentLoaded', function() {
@@ -783,7 +804,7 @@
                 loanDebtFields.style.display = (this.value === 'loan' || this.value === 'debt') ? 'block' : 'none';
                 
                 // Cambiar color del botón según el tipo
-                const button = document.querySelector('.sidebar button');
+                const button = document.getElementById('transaction-submit');
                 button.className = '';
                 if (this.value === 'income') button.classList.add('btn-income');
                 else if (this.value === 'expense') button.classList.add('btn-expense');
@@ -915,6 +936,7 @@
             loadUserData();
         }
 
+        // Funciones para gestionar transacciones
         function addTransaction() {
             if (!currentUser) {
                 showNotification('Debes iniciar sesión para agregar transacciones', 'error');
@@ -968,17 +990,193 @@
             db.collection('transactions').add(transaction)
                 .then(() => {
                     showNotification('Transacción agregada correctamente', 'success');
-                    
-                    // Limpiar formulario
-                    document.getElementById('transaction-amount').value = '';
-                    document.getElementById('transaction-description').value = '';
-                    document.getElementById('loan-person').value = '';
-                    document.getElementById('loan-due-date').value = '';
+                    resetForm();
                 })
                 .catch((error) => {
                     showNotification('Error guardando transacción: ' + error.message, 'error');
                     document.getElementById('sync-status').textContent = 'Error de guardado';
                 });
+        }
+
+        function editTransaction(transactionId) {
+            const transaction = transactions.find(t => t.id === transactionId);
+            if (!transaction) return;
+            
+            currentEditingId = transactionId;
+            
+            // Llenar el formulario con los datos existentes
+            document.getElementById('transaction-type').value = transaction.type;
+            document.getElementById('transaction-amount').value = transaction.amount;
+            document.getElementById('transaction-category').value = transaction.category;
+            document.getElementById('transaction-description').value = transaction.description;
+            document.getElementById('transaction-date').value = transaction.date.slice(0, 16);
+            
+            // Mostrar campos adicionales para préstamos/deudas
+            const loanDebtFields = document.getElementById('loan-debt-fields');
+            if (transaction.type === 'loan' || transaction.type === 'debt') {
+                loanDebtFields.style.display = 'block';
+                document.getElementById('loan-person').value = transaction.person || '';
+                document.getElementById('loan-due-date').value = transaction.dueDate || '';
+            } else {
+                loanDebtFields.style.display = 'none';
+            }
+            
+            // Cambiar el botón a "Actualizar"
+            const submitButton = document.getElementById('transaction-submit');
+            submitButton.innerHTML = '<i class="fas fa-sync"></i> Actualizar Transacción';
+            submitButton.onclick = function() { updateTransaction(); };
+            
+            // Scroll al formulario
+            document.querySelector('.sidebar').scrollIntoView({ behavior: 'smooth' });
+            
+            showNotification('Modo edición activado. Modifica los campos necesarios.', 'info');
+        }
+
+        function updateTransaction() {
+            if (!currentEditingId) return;
+            
+            const type = document.getElementById('transaction-type').value;
+            const amount = parseFloat(document.getElementById('transaction-amount').value);
+            const category = document.getElementById('transaction-category').value;
+            const description = document.getElementById('transaction-description').value;
+            const date = document.getElementById('transaction-date').value;
+            
+            if (!amount || amount <= 0 || isNaN(amount)) {
+                showNotification('Por favor, ingresa una cantidad válida', 'error');
+                return;
+            }
+
+            if (!description.trim()) {
+                showNotification('Por favor, ingresa una descripción', 'error');
+                return;
+            }
+
+            const updateData = {
+                type: type,
+                amount: amount,
+                category: category,
+                description: description,
+                date: date
+            };
+
+            if (type === 'loan' || type === 'debt') {
+                const person = document.getElementById('loan-person').value;
+                const dueDate = document.getElementById('loan-due-date').value;
+                
+                if (!person.trim()) {
+                    showNotification('Por favor, ingresa el nombre de la persona', 'error');
+                    return;
+                }
+
+                updateData.person = person;
+                updateData.dueDate = dueDate;
+            }
+            
+            document.getElementById('sync-status').innerHTML = '<div class="loading"></div> Actualizando...';
+            
+            const db = firebase.firestore();
+            db.collection('transactions').doc(currentEditingId).update(updateData)
+                .then(() => {
+                    showNotification('Transacción actualizada correctamente', 'success');
+                    resetForm();
+                    currentEditingId = null;
+                })
+                .catch((error) => {
+                    showNotification('Error actualizando transacción: ' + error.message, 'error');
+                    document.getElementById('sync-status').textContent = 'Error de actualización';
+                });
+        }
+
+        function deleteTransaction(transactionId) {
+            if (confirm('¿Estás seguro de que quieres eliminar esta transacción? Esta acción no se puede deshacer.')) {
+                const db = firebase.firestore();
+                db.collection('transactions').doc(transactionId).delete()
+                    .then(() => {
+                        showNotification('Transacción eliminada correctamente', 'success');
+                    })
+                    .catch((error) => {
+                        showNotification('Error eliminando transacción: ' + error.message, 'error');
+                    });
+            }
+        }
+
+        function resetForm() {
+            // Restablecer el formulario
+            document.getElementById('transaction-amount').value = '';
+            document.getElementById('transaction-description').value = '';
+            document.getElementById('loan-person').value = '';
+            document.getElementById('loan-due-date').value = '';
+            document.getElementById('loan-debt-fields').style.display = 'none';
+            
+            // Restablecer el botón
+            const submitButton = document.getElementById('transaction-submit');
+            submitButton.innerHTML = '<i class="fas fa-plus"></i> Agregar Transacción';
+            submitButton.onclick = function() { addTransaction(); };
+            submitButton.className = 'btn-income';
+            
+            // Restablecer el tipo a income por defecto
+            document.getElementById('transaction-type').value = 'income';
+            
+            currentEditingId = null;
+        }
+
+        function registerLoanPayment(loanId, isPayingBack) {
+            const transaction = transactions.find(t => t.id === loanId);
+            if (!transaction) return;
+            
+            const db = firebase.firestore();
+            
+            if (isPayingBack) {
+                // Registrar como gasto (estás devolviendo un préstamo)
+                const paymentTransaction = {
+                    type: 'expense',
+                    amount: transaction.amount,
+                    category: 'prestamos',
+                    description: `Devolución de préstamo a ${transaction.person}`,
+                    date: new Date().toISOString(),
+                    createdAt: new Date().toISOString(),
+                    userId: currentUser.uid,
+                    relatedLoanId: loanId
+                };
+                
+                db.collection('transactions').add(paymentTransaction)
+                    .then(() => {
+                        // Marcar el préstamo como pagado
+                        db.collection('transactions').doc(loanId).update({
+                            status: 'paid',
+                            paidDate: new Date().toISOString()
+                        });
+                        showNotification('Pago de préstamo registrado correctamente', 'success');
+                    })
+                    .catch((error) => {
+                        showNotification('Error registrando pago: ' + error.message, 'error');
+                    });
+            } else {
+                // Registrar como ingreso (te están pagando un préstamo)
+                const paymentTransaction = {
+                    type: 'income',
+                    amount: transaction.amount,
+                    category: 'prestamos',
+                    description: `Pago de deuda de ${transaction.person}`,
+                    date: new Date().toISOString(),
+                    createdAt: new Date().toISOString(),
+                    userId: currentUser.uid,
+                    relatedLoanId: loanId
+                };
+                
+                db.collection('transactions').add(paymentTransaction)
+                    .then(() => {
+                        // Marcar la deuda como pagada
+                        db.collection('transactions').doc(loanId).update({
+                            status: 'paid',
+                            paidDate: new Date().toISOString()
+                        });
+                        showNotification('Cobro de deuda registrado correctamente', 'success');
+                    })
+                    .catch((error) => {
+                        showNotification('Error registrando cobro: ' + error.message, 'error');
+                    });
+            }
         }
 
         function showTab(tabName) {
@@ -1061,6 +1259,15 @@
                                 ${getCategoryName(transaction.category)}
                             </span>
                             ${transaction.person ? `• ${transaction.person}` : ''}
+                            ${transaction.status === 'paid' ? '• <i class="fas fa-check-circle" style="color: #27ae60;"></i> Pagado' : ''}
+                        </div>
+                        <div class="transaction-actions">
+                            <button onclick="editTransaction('${transaction.id}')" class="btn-edit">
+                                <i class="fas fa-edit"></i> Editar
+                            </button>
+                            <button onclick="deleteTransaction('${transaction.id}')" class="btn-delete">
+                                <i class="fas fa-trash"></i> Eliminar
+                            </button>
                         </div>
                     </div>
                     <div class="transaction-amount ${transaction.type}">
@@ -1094,38 +1301,41 @@
                         <div><strong>Estado:</strong> ${loan.status === 'paid' ? 'Pagado' : 'Pendiente'}</div>
                     </div>
                     ${loan.status !== 'paid' ? `
-                        <button onclick="markAsPaid('${loan.id}')" class="btn-income">
-                            <i class="fas fa-check"></i> Marcar como Pagado
-                        </button>
-                    ` : ''}
+                        <div style="display: flex; gap: 10px; margin-top: 10px;">
+                            ${loan.type === 'loan' ? `
+                                <button onclick="registerLoanPayment('${loan.id}', true)" class="btn-expense">
+                                    <i class="fas fa-hand-holding-usd"></i> Devolví este préstamo
+                                </button>
+                            ` : `
+                                <button onclick="registerLoanPayment('${loan.id}', false)" class="btn-income">
+                                    <i class="fas fa-money-bill-wave"></i> Me pagaron esta deuda
+                                </button>
+                            `}
+                            <button onclick="editTransaction('${loan.id}')" class="btn-loan">
+                                <i class="fas fa-edit"></i> Editar
+                            </button>
+                        </div>
+                    ` : `
+                        <div style="color: #27ae60; font-weight: bold; margin-top: 10px;">
+                            <i class="fas fa-check-circle"></i> Pagado el ${loan.paidDate ? formatDate(loan.paidDate) : 'fecha desconocida'}
+                        </div>
+                    `}
                 </div>
             `).join('');
-        }
-
-        function markAsPaid(id) {
-            const db = firebase.firestore();
-            db.collection('transactions').doc(id).update({
-                status: 'paid'
-            })
-            .then(() => {
-                showNotification('Préstamo/deuda marcado como pagado', 'success');
-            })
-            .catch((error) => {
-                showNotification('Error actualizando: ' + error.message, 'error');
-            });
         }
 
         function updateStats() {
             const filteredTransactions = getFilteredTransactions();
             
             const totalIncome = filteredTransactions
-                .filter(t => t.type === 'income')
+                .filter(t => t.type === 'income' && !t.relatedLoanId) // Excluir pagos de préstamos
                 .reduce((sum, t) => sum + t.amount, 0);
                 
             const totalExpenses = filteredTransactions
-                .filter(t => t.type === 'expense')
+                .filter(t => t.type === 'expense' && !t.relatedLoanId) // Excluir devoluciones de préstamos
                 .reduce((sum, t) => sum + t.amount, 0);
                 
+            // Los préstamos pendientes se mantienen en el cálculo
             const totalLoans = filteredTransactions
                 .filter(t => t.type === 'loan' && t.status !== 'paid')
                 .reduce((sum, t) => sum + t.amount, 0);
@@ -1134,7 +1344,7 @@
                 .filter(t => t.type === 'debt' && t.status !== 'paid')
                 .reduce((sum, t) => sum + t.amount, 0);
                 
-            const totalBalance = totalIncome + totalDebts - totalExpenses - totalLoans;
+            const totalBalance = totalIncome - totalExpenses - totalLoans + totalDebts;
 
             document.getElementById('total-balance').textContent = `€${totalBalance.toFixed(2)}`;
             document.getElementById('total-income').textContent = `€${totalIncome.toFixed(2)}`;
@@ -1207,7 +1417,7 @@
             // Actualizar gráfico de gastos por categoría
             const expensesByCategory = {};
             transactions
-                .filter(t => t.type === 'expense')
+                .filter(t => t.type === 'expense' && !t.relatedLoanId) // Excluir devoluciones de préstamos
                 .forEach(t => {
                     expensesByCategory[t.category] = (expensesByCategory[t.category] || 0) + t.amount;
                 });
@@ -1236,6 +1446,8 @@
             
             // Calcular datos mensuales
             transactions.forEach(t => {
+                if (t.relatedLoanId) return; // Excluir transacciones relacionadas con préstamos
+                
                 const date = new Date(t.date);
                 const monthKey = date.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' });
                 
@@ -1369,6 +1581,7 @@
                 'casa': 'Casa',
                 'salud': 'Salud',
                 'educacion': 'Educación',
+                'prestamos': 'Préstamos',
                 'otros': 'Otros'
             };
             return categories[category] || category;
@@ -1385,6 +1598,7 @@
                 'casa': '#34495e',
                 'salud': '#e67e22',
                 'educacion': '#16a085',
+                'prestamos': '#8e44ad',
                 'otros': '#7f8c8d'
             };
             return colors[category] || '#95a5a6';
